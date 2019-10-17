@@ -294,23 +294,32 @@ public class ToTextStream extends ToStream
             } else if (m_encodingInfo.isInEncoding(c)) {
                 writer.write(c);
                 // one input char processed    
-            } else if (Encodings.isHighUTF16Surrogate(c)) {
+            } else if (Encodings.isHighUTF16Surrogate(c) ||
+                       Encodings.isLowUTF16Surrogate(c)) {
                 final int codePoint = writeUTF16Surrogate(c, ch, i, end);
-                if (codePoint != 0) {
-                    // I think we can just emit the message,
-                    // not crash and burn.
-                    final String integralValue = Integer.toString(codePoint);
-                    final String msg = Utils.messages.createMessage(
-                        MsgKey.ER_ILLEGAL_CHARACTER,
-                        new Object[] { integralValue, encoding });
-                      
-                    //Older behavior was to throw the message,
-                    //but newer gentler behavior is to write a message to System.err
-                    //throw new SAXException(msg);
-                    System.err.println(msg);                            
+                if (codePoint >= 0) {
+                    // move the index if the low surrogate is consumed
+                    // as writeUTF16Surrogate has written the pair
+                    if (Encodings.isHighUTF16Surrogate(c)) {
+                        i++;
+                    }
 
+                    // printing to the console is not appropriate, but will leave
+                    // it as is for compatibility.
+                    if (codePoint >0) {
+                        // I think we can just emit the message,
+                        // not crash and burn.
+                        final String integralValue = Integer.toString(codePoint);
+                        final String msg = Utils.messages.createMessage(
+                                MsgKey.ER_ILLEGAL_CHARACTER,
+                                new Object[] { integralValue, encoding });
+
+                        //Older behavior was to throw the message,
+                        //but newer gentler behavior is to write a message to System.err
+                        //throw new SAXException(msg);
+                        System.err.println(msg);
+                    }
                 }
-                i++; // two input chars processed               
             } else {
                 // Don't know what to do with this char, it is
                 // not in the encoding and not a high char in
